@@ -12,6 +12,7 @@ s4.settimeout(1)
 s6.settimeout(1)
 shutdown_event = threading.Event()
 
+dump_lock = threading.Lock()
 t1_mutex = threading.Lock()
 t2_mutex = threading.Lock()
 
@@ -20,7 +21,8 @@ t2_term = False
 
 
 def dump_ipv4_packet(pack):
-    print(type(pack))
+    
+    dump_lock.acquire() 
     
     packet_string = pack[0]
     ip_addr = pack[1]
@@ -43,9 +45,7 @@ def dump_ipv4_packet(pack):
     source_ip = str(unpacked_header[12]) + "." + str(unpacked_header[13]) + '.' + str(unpacked_header[14]) + '.' + str(unpacked_header[15])
     dest_ip = str(unpacked_header[16]) + "." + str(unpacked_header[17]) + '.' + str(unpacked_header[18]) + '.' + str(unpacked_header[19])
 
-
-    print("PACK", packet_string)
-    print("unpacked", unpacked_header)
+    print("START PACKET DUMP")
     print("IP_ADDR", ip_addr)
     print("unpacked", unpacked_header)
     print("VERSION", version)
@@ -63,7 +63,20 @@ def dump_ipv4_packet(pack):
     tcp_header = packet_string[tcp_start:tcp_start + 20]
     unpacked_tcp = unpack('!HHLLBBHHH', tcp_header)
 
+    dump = unpack("!HHBBBBBBBBBBHHH", tcp_header)
+    print(dump)
+    print(unpacked_tcp, "UNPACKED")
+    source_port = unpacked_tcp[0]
+    dest_port = unpacked_tcp[1]
+    seq = unpacked_tcp[2] 
+    print("SOURCE PORT", source_port)
+    print("DEST PORT", dest_port)
+    print("SEQ", seq >> 11)
+     
 
+    print("END PACKET DUMP\n\n")
+
+    dump_lock.release()
 
 def monitor_ipv4():
     # receive a packet
@@ -73,7 +86,7 @@ def monitor_ipv4():
             packet = s4.recvfrom(65566)
         except Exception as err:
             packet = None
-        if one and packet is not None:
+        if packet is not None:
             dump_ipv4_packet(packet)
             one = False
 

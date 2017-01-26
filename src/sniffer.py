@@ -19,11 +19,9 @@ t2_mutex = threading.Lock()
 t1_term = False
 t2_term = False
 
-
 def dump_ipv4_packet(pack):
     
     dump_lock.acquire() 
-    
     packet_string = pack[0]
     ip_addr = pack[1]
     ip_header = packet_string[0:20]
@@ -58,39 +56,42 @@ def dump_ipv4_packet(pack):
     print("PROTOCOL", protocol)
     print("SOURCE_IP", source_ip)
     print("DEST_IP", dest_ip)
-
+    
     tcp_start = header_length * 4
     tcp_header = packet_string[tcp_start:tcp_start + 20]
     unpacked_tcp = unpack('!HHLLBBHHH', tcp_header)
-
-    dump = unpack("!HHBBBBBBBBBBHHH", tcp_header)
-    print(dump)
-    print(unpacked_tcp, "UNPACKED")
     source_port = unpacked_tcp[0]
     dest_port = unpacked_tcp[1]
     seq = unpacked_tcp[2] 
+    ack = unpacked_tcp[3] 
+    checksum = unpacked_tcp[7]
+
     print("SOURCE PORT", source_port)
     print("DEST PORT", dest_port)
-    print("SEQ", seq >> 11)
-     
-
+    print("SEQUENCE", seq)
+    print("ACK", ack)
+    print("CHECKSUM", hex(checksum)) 
+    
     print("END PACKET DUMP\n\n")
 
     dump_lock.release()
 
+def dump_ipv6_packet():
+    dump_lock.acquire()
+    print("BEGIN PACKET DUMP: IPV6")
+    dump_lock.release()
+
+
 def monitor_ipv4():
-    # receive a packet
-    one = True
+    
     while True:
         try:
-            packet = s4.recvfrom(65566)
+            ipv4_packet = s4.recvfrom(65566)
         except Exception as err:
-            packet = None
-        if packet is not None:
-            dump_ipv4_packet(packet)
-            one = False
+            ipv4_packet = None
+        if ipv4_packet is not None:
+            dump_ipv4_packet(ipv4_packet)
 
-        # Check to see if program should terminate
         t1_mutex.acquire()
         if t1_term:
             t1_mutex.release()
@@ -98,15 +99,15 @@ def monitor_ipv4():
         t1_mutex.release() 
 
 def monitor_ipv6():
-    # receive a packet
+    
     while True:
         try:
-            packet = s6.recvfrom(65566)
+            ipv6_packet = s6.recvfrom(65566)
         except Exception as err:
-            packet = None
-        print(packet)
+            ipv6_packet = None
+        if ipv6_packet is not None:
+            dump_ipv6_packet(ipv6_packet)
 
-        # Check to see if program should terminate
         t2_mutex.acquire()
         if t2_term:
             t2_mutex.release()
